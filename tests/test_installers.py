@@ -126,6 +126,7 @@ class InstallerTest(unittest.TestCase):
         command = ["python3", "shared_memory.py", "sync"]
         with (
             patch.object(install_client.platform, "system", return_value="Darwin"),
+            patch.object(install_client.os, "getuid", return_value=501, create=True),
             patch.object(install_client, "run"),
             patch.object(install_client.subprocess, "run"),
         ):
