@@ -1,0 +1,6 @@
+Codex Shared Memory
+Copyright 2026 Sidhaarth Krishnan
+
+This project implements a compatibility surface evaluated against the OpenAI Codex memory extension. It is an independent community project and is not affiliated with or endorsed by OpenAI.
+
+OpenAI and Codex are trademarks of their respective owner. No trademark rights are granted by the Apache License 2.0.

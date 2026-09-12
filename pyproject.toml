@@ -1,0 +1,25 @@
+[project]
+name = "codex-shared-memory"
+version = "1.0.0"
+description = "A private, self-hosted MCP service for sharing selected Codex memory snapshots"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "Sidhaarth Krishnan", email = "krishnansidhaarth@gmail.com" }]
+keywords = ["codex", "mcp", "memory", "self-hosted"]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/RealSid08/codex-shared-memory"
+Repository = "https://github.com/RealSid08/codex-shared-memory"
+Issues = "https://github.com/RealSid08/codex-shared-memory/issues"
+
+[dependency-groups]
+dev = ["ruff>=0.16,<0.17"]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"

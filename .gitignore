@@ -1,0 +1,26 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.py[cod]
+*.log
+*.pem
+*.key
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+
+# Runtime state and private memory content
+client.json
+server.json
+data/
+shared-memories/
+machines/
+extensions/
+rollout_summaries/
+MEMORY.md
+memory_summary.md
+raw_memories.md
+.codex/
