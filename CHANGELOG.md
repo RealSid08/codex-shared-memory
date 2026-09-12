@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Document the recommended `AGENTS.md` guidance, placement options, safety boundaries, and lookup workflow for agents using shared memory.
+
 ## 1.0.0 - 2026-09-12
 
 - Extract the proven single-user service into a portable repository.

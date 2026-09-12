@@ -85,6 +85,8 @@ Use `--codex-home`, `--native-memory`, `--cache`, and `--install-dir` for non-de
 
 Codex supports stdio MCP configuration through `config.toml` and the `codex mcp` commands. Its `AGENTS.md` hierarchy is documented separately. See the official [Codex MCP guide](https://learn.chatgpt.com/docs/extend/mcp?surface=cli) and [AGENTS.md guide](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
 
+The instruction block is what tells an agent when to consult shared memory, how to validate retrieved context, and when cross-machine writes are allowed. See [AGENT-GUIDANCE.md](AGENT-GUIDANCE.md) for the copy-paste template, placement options, and the recommended lookup workflow.
+
 ## Other MCP clients
 
 The installer can prepare sync and cache files without changing Codex:
