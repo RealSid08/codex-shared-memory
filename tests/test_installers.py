@@ -196,6 +196,21 @@ class InstallerTest(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, "not plain JSON"):
             harnesses.OpenCode(home).register(["py"])
 
+    def test_tool_output_stays_off_installer_stdout(self):
+        for module in (harnesses, scheduler):
+            with patch.object(module.subprocess, "run") as mocked:
+                module.run(["tool", "--flag"])
+            self.assertIs(mocked.call_args.kwargs["stdout"], sys.stderr)
+
+    def test_interpreter_path_is_not_resolved(self):
+        real = self.root / "cpython-3.11.16/bin/python3.11"
+        real.parent.mkdir(parents=True)
+        real.touch()
+        stable = self.root / "cpython-3.11"
+        stable.symlink_to(self.root / "cpython-3.11.16")
+        with patch.object(install.sys, "executable", str(stable / "bin/python3.11")):
+            self.assertEqual(install.interpreter(), str(stable / "bin/python3.11"))
+
     def test_scheduler_definitions(self):
         command = ["python3", "shared_memory.py", "sync"]
         with (

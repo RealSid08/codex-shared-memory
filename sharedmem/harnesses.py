@@ -18,6 +18,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from .core import atomic_write
@@ -39,7 +40,8 @@ GUIDANCE = """
 
 
 def run(command, **kwargs):
-    return subprocess.run(command, check=True, **kwargs)
+    # Tool chatter goes to stderr so the installer's stdout stays one JSON document.
+    return subprocess.run(command, check=True, stdout=sys.stderr, **kwargs)
 
 
 def _backup_once(path):
