@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased
+## 2.0.0 - 2026-10-29
+
+- Split the single script into the `sharedmem/` package (core, sources, store, tools, mcp, server, client, harnesses, scheduler, install, cli); `shared_memory.py` stays as the launcher at the same path.
+- Add pluggable memory sources: `codex`, `claude-code`, and generic `markdown` directories, each with a server-enforced allowlist and its own namespace under `machines/<machine>/<source>/`.
+- Register with Codex, Claude Code, OpenCode, and Cursor, and write guidance once per real instruction file, skipping files that already carry a shared-memory policy.
+- Serve MCP reads from the local cache by default (`serve --config`); note writes go to the server and refresh the cache.
+- Skip and report oversized or unreadable files and missing sources instead of failing the whole sync; raise the per-file limit to 2 MiB.
+- Add store schema versioning with an automatic, backed-up v1 migration, v1 exchange compatibility, a status operation, and a `doctor` command.
+
+## Unreleased (1.x)
 
 - Document the recommended `AGENTS.md` guidance, placement options, safety boundaries, and lookup workflow for agents using shared memory.
 

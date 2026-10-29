@@ -39,6 +39,8 @@ REQUIRED = {
     "install_client.py",
     "install_server.py",
     "shared_memory.py",
+    "sharedmem/__init__.py",
+    "sharedmem/cli.py",
 }
 
 

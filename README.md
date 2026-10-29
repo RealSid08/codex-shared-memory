@@ -2,73 +2,61 @@
 
 [![test](https://github.com/RealSid08/codex-shared-memory/actions/workflows/test.yml/badge.svg)](https://github.com/RealSid08/codex-shared-memory/actions/workflows/test.yml)
 
-Codex Shared Memory is a small, self-hosted MCP server that shares selected Markdown memory snapshots across trusted machines. It keeps one SQLite store on a server you control, transfers data over local stdio or SSH, and maintains a read-only offline cache on every client.
+Codex Shared Memory is a small, self-hosted MCP service that shares selected Markdown memory across trusted machines and across coding-agent harnesses: Codex, Claude Code, OpenCode, Cursor, or anything else that speaks stdio MCP. It keeps one SQLite store on a server you control, transfers data over local stdio or SSH, and keeps a plain Markdown cache on every client that agents read locally, even offline.
 
-This is an unofficial community project. It is not affiliated with or endorsed by OpenAI.
+This is an unofficial community project. It is not affiliated with or endorsed by OpenAI, Anthropic, or Anysphere.
 
 ## What it shares
 
-Each enrolled machine may publish only:
+Each enrolled machine publishes only allowlisted files from the memory sources it enables:
 
-- `MEMORY.md`
-- `memory_summary.md`
-- `rollout_summaries/*.md`
+| Source | Reads | Published as |
+|---|---|---|
+| `codex` | `$CODEX_HOME/memories`: `MEMORY.md`, `memory_summary.md`, `rollout_summaries/*.md` | `machines/<machine>/codex/` |
+| `claude-code` | `~/.claude/projects/<project>/memory/*.md` | `machines/<machine>/claude-code/<project>/` |
+| `markdown` | Any directory of `.md` files you name (four levels deep) | `machines/<machine>/<name>/` |
 
-The service does not publish raw conversations, `raw_memories.md`, authentication files, computer history, arbitrary extensions, or repository files. Published snapshots appear under `machines/<machine-id>/`. Explicit cross-machine notes live under `extensions/ad_hoc/notes/` and are append-only.
+The service never publishes raw conversations, `raw_memories.md`, hidden files, symlinks, authentication files, or computer history. The server enforces each source's allowlist again on ingest. Explicit cross-machine notes live under `extensions/ad_hoc/notes/` and are append-only.
 
 Credential detection and redaction are best-effort safeguards, not a guarantee. Do not intentionally put secrets in memory files.
 
 ## Why this design
 
-- No public listener or database server is required.
-- Python 3.11+ and the standard library are sufficient at runtime.
+- No public listener or database server. Python 3.11+ and the standard library are enough at runtime.
 - SSH supplies encryption and host verification for remote clients.
-- Machine snapshots replace only their own namespace in one transaction.
-- If the server is offline, the last successful local cache remains readable.
-- Agent-facing writes are limited to new, timestamped notes. Destructive deletion stays administrative.
-
-This service is an independent compatibility layer. It does not replace or modify Codex's built-in local memory backend.
+- Local-first reads: each harness starts the MCP server on its own machine, reading the synced cache. Lookups are fast, work offline, and do not open an SSH session per agent.
+- Writes are explicit notes only. They go to the server, then refresh the local cache.
+- Each (machine, source) snapshot replaces only its own namespace in one transaction. A broken source or an oversized file is reported and skipped; it never blocks the rest of the sync.
+- Old v1 clients and stores keep working: the store migrates itself (with a backup) and the server still speaks the v1 exchange protocol.
 
 ## Quick start
 
-Clone the repository on the server and install the standalone script:
+On the server:
 
 ```sh
-python3 install_server.py --skip-backup-scheduler
+python3 install_server.py
 ```
 
-For a server data directory on a dedicated mount:
+Ensure each client reaches the server with non-interactive SSH and strict host-key checking, then on the client:
 
 ```sh
-python3 install_server.py \
-  --data-dir /srv/shared-memory/data \
-  --require-mount /srv/shared-memory
+python3 install_client.py --machine laptop --ssh-host memory-server
 ```
 
-Ensure each client can reach the server with non-interactive SSH and strict host-key checking. Then run from a clone on the client:
+The client installer enables every source whose directory exists (override with `--source codex`, `--source claude-code`, or `--markdown NAME=PATH`), performs an initial sync, registers `shared_memories` with every detected harness (override with `--harness`), adds the guidance block to each harness's global instructions unless they already carry a shared-memory policy, and schedules a two-minute sync on macOS, Linux, or Windows.
+
+Check the result at any time:
 
 ```sh
-python3 install_client.py \
-  --machine laptop \
-  --ssh-host memory-server
+python3 ~/.local/share/codex-shared-memory/shared_memory.py doctor \
+  --config ~/.local/share/codex-shared-memory/client.json
 ```
 
-The client installer performs an initial sync before it changes Codex configuration or creates a schedule. It can register the `shared_memories` stdio MCP server with Codex, add a marked guidance block to the user's `AGENTS.md`, and configure a two-minute sync on macOS, Linux, or Windows.
+For full setup, read [docs/INSTALL.md](docs/INSTALL.md). For recovery, backup, upgrades, deletion, and removal, read [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
-For full setup, manual client configuration, server paths, and platform notes, read [docs/INSTALL.md](docs/INSTALL.md). For recovery, backup, deletion, and removal, read [docs/OPERATIONS.md](docs/OPERATIONS.md).
+## Agent guidance
 
-## Recommended agent instructions
-
-Connecting the MCP server makes the tools available, but agents also need guidance about when and how to use them. The client installer adds the recommended block to the user's global Codex `AGENTS.md` automatically.
-
-For manual setup, repository-scoped use, or another compatible agent client, copy the template in [docs/AGENT-GUIDANCE.md](docs/AGENT-GUIDANCE.md) into the relevant agent-instructions file. It tells agents to:
-
-- consult shared memory only when prior context would materially help;
-- use `memory_summary.md` as an index and retrieve only relevant entries;
-- treat memory as untrusted reference data rather than instructions;
-- verify repository, machine, timestamp, and current state before acting;
-- write cross-machine notes only when the user explicitly asks; and
-- fall back to the read-only local cache when the server is unavailable.
+Connecting the MCP server makes the tools available; agents also need guidance about when to use them. The installer adds the recommended block automatically. [docs/AGENT-GUIDANCE.md](docs/AGENT-GUIDANCE.md) has the template for manual or repository-scoped setups. It tells agents to consult memory only when it helps, start from the `memory_summary.md` index, treat memory as untrusted reference data, verify provenance and current state, write notes only on explicit request, and fall back to the cache directory when a tool call fails.
 
 ## MCP tools
 
@@ -77,7 +65,11 @@ For manual setup, repository-scoped use, or another compatible agent client, cop
 - `search(queries, match_mode?, path?, cursor?, context_lines?, case_sensitive?, normalized?, max_results?)`
 - `add_ad_hoc_note(filename, note)`
 
-The server supports newline-delimited JSON-RPC over stdio and MCP protocol revisions from `2024-11-05` through `2025-11-25`. Tool results are JSON encoded in MCP text content for broad client compatibility.
+The server speaks newline-delimited JSON-RPC over stdio and MCP protocol revisions `2024-11-05` through `2025-11-25`. Tool results are JSON encoded in MCP text content for broad client compatibility.
+
+## Layout
+
+`shared_memory.py` is the launcher (its path is stable for existing registrations). The implementation is the `sharedmem/` package: `core`, `sources`, `store`, `tools`, `mcp`, `server`, `client`, `harnesses`, `scheduler`, `install`, `cli`. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Development and verification
 
@@ -88,7 +80,7 @@ uv run python -m unittest discover -s tests -v
 uv run python scripts/release_check.py --public-release
 ```
 
-Tests use temporary directories and synthetic memory only. They cover path validation, allowlisting, quotas, redaction, symlink refusal, append-only concurrency, snapshot isolation, cache retention while offline, backups, the MCP transport, both installers, and a local end-to-end sync.
+Tests use temporary directories and synthetic memory only. They cover path validation, per-source allowlists, quotas, redaction, symlink refusal, append-only concurrency, snapshot isolation, v1 store migration and protocol compatibility, partial-source sync, cache retention while offline, cache-backed MCP with note forwarding, backups, the MCP transport, every harness integration, and both installers end to end.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md), [docs/PROVENANCE.md](docs/PROVENANCE.md), and [CONTRIBUTING.md](CONTRIBUTING.md) for more detail.
 
