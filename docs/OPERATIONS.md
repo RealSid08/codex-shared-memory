@@ -18,7 +18,20 @@ python3 ~/.local/share/codex-shared-memory/shared_memory.py sync \
   --config ~/.local/share/codex-shared-memory/client.json
 ```
 
-Inspect `status.json` in the configured cache for the last success. A failed sync preserves the existing cache and writes `error.json`; the next success removes the error file.
+Inspect `status.json` in the configured cache for the last success, per-source results, skipped files, and source errors. A failed sync preserves the existing cache and writes `error.json`; the next success removes the error file.
+
+For an end-to-end check of sources, server, cache freshness, and every harness registration:
+
+```sh
+python3 ~/.local/share/codex-shared-memory/shared_memory.py doctor \
+  --config ~/.local/share/codex-shared-memory/client.json
+```
+
+## Upgrade from 1.x
+
+1. Upgrade the server first: rerun `install_server.py` from the new checkout. The first command that opens the store writes `<data>/backups/pre-v2-migration.sqlite3` and migrates it in place; `status` then reports `"schema": 2`.
+2. Unupgraded 1.x clients keep syncing. Their snapshots land under `machines/<machine>/codex/`, and their responses omit files over 512 KiB.
+3. Rerun `install_client.py` on each client. It switches the harnesses to the local cache-backed `serve --config` command, enables detected sources, and keeps the same schedule names.
 
 ## Backups
 

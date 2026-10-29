@@ -6,7 +6,7 @@
 - OpenSSH client and server for remote transport
 - A private network path or otherwise secured SSH endpoint
 - Non-interactive key authentication with host verification enabled
-- Codex CLI only if the installer should register the MCP server automatically
+- The CLI of each harness to register automatically (`codex`, `claude`); OpenCode and Cursor are configured through their JSON files
 
 The runtime has no third-party Python dependencies.
 
@@ -43,14 +43,13 @@ ssh -o BatchMode=yes -o StrictHostKeyChecking=yes memory-server true
 
 Do not disable host-key checking. An enrolled SSH identity is trusted to read the entire shared store and create notes, so do not enroll shared or untrusted machines.
 
+
 ## 3. Install a client
 
 Clone or copy this repository onto the client. Choose a stable lowercase machine ID:
 
 ```sh
-python3 install_client.py \
-  --machine laptop \
-  --ssh-host memory-server
+python3 install_client.py --machine laptop --ssh-host memory-server
 ```
 
 The defaults expect the remote script and data at:
@@ -74,84 +73,47 @@ python3 install_client.py \
 
 The installer:
 
-1. Copies the client script to `~/.local/share/codex-shared-memory/`.
-2. Writes a private `client.json` containing local paths and the exchange command.
-3. Performs the first sync. Failure stops the installer before configuration changes.
-4. Registers `shared_memories` with Codex unless `--skip-codex` is used.
-5. Adds or updates one marked guidance block in the selected Codex `AGENTS.md` unless `--skip-instructions` is used.
+1. Copies `shared_memory.py` and the `sharedmem/` package to `~/.local/share/codex-shared-memory/`.
+2. Resolves memory sources (see below) and writes a private `client.json`.
+3. Performs the first sync. Failure stops the installer before any harness configuration changes.
+4. Registers `shared_memories` with each selected harness (see below) unless `--skip-mcp` is used.
+5. Adds or updates one marked guidance block in each harness's global instructions unless `--skip-instructions` is used. Symlinked instruction files are written once; a file that already has its own shared-memory policy is left unchanged.
 6. Creates a per-user two-minute schedule unless `--skip-scheduler` is used.
 
-Use `--codex-home`, `--native-memory`, `--cache`, and `--install-dir` for non-default local layouts. Use `--local-data <path>` instead of `--ssh-host` for a single-machine deployment or isolated test.
+Use `--codex-home`, `--cache`, and `--install-dir` for non-default local layouts. Use `--local-data <path>` instead of `--ssh-host` for a single-machine deployment or isolated test.
 
-Codex supports stdio MCP configuration through `config.toml` and the `codex mcp` commands. Its `AGENTS.md` hierarchy is documented separately. See the official [Codex MCP guide](https://learn.chatgpt.com/docs/extend/mcp?surface=cli) and [AGENTS.md guide](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
+### Memory sources
 
-The instruction block is what tells an agent when to consult shared memory, how to validate retrieved context, and when cross-machine writes are allowed. See [AGENT-GUIDANCE.md](AGENT-GUIDANCE.md) for the copy-paste template, placement options, and the recommended lookup workflow.
+By default the installer enables every source whose directory exists:
 
-## Other MCP clients
+- `codex`: `$CODEX_HOME/memories` (or `--native-memory`)
+- `claude-code`: `~/.claude/projects`
 
-The installer can prepare sync and cache files without changing Codex:
+Choose explicitly with `--source codex`, `--source claude-code=/other/path`, and add plain Markdown directories with `--markdown team=/path/to/notes`. Rerun the installer to change sources; the server keeps each source's last snapshot until the machine republishes it.
 
-```sh
-python3 install_client.py \
-  --machine workstation \
-  --ssh-host memory-server \
-  --skip-codex \
-  --skip-instructions
-```
+### Harnesses
 
-Then register the same stdio command in the MCP client. Example placeholders follow.
+`--harness` selects integrations (repeatable); by default every detected harness is configured:
 
-Cursor user configuration in `~/.cursor/mcp.json`:
+| Harness | MCP registration | Guidance |
+|---|---|---|
+| `codex` | `codex mcp add shared_memories` (honors `CODEX_HOME`) | `$CODEX_HOME/AGENTS.md` |
+| `claude-code` | `claude mcp add --scope user shared_memories` | `~/.claude/CLAUDE.md` |
+| `opencode` | `mcp.shared_memories` in `~/.config/opencode/opencode.json` | `~/.config/opencode/AGENTS.md` |
+| `cursor` | `mcpServers.shared_memories` in `~/.cursor/mcp.json` | `~/.cursor/AGENTS.md`, if present |
 
-```json
-{
-  "mcpServers": {
-    "shared_memories": {
-      "type": "stdio",
-      "command": "ssh",
-      "args": [
-        "-T",
-        "-o", "BatchMode=yes",
-        "-o", "StrictHostKeyChecking=yes",
-        "memory-server",
-        "python3 ~/.local/share/codex-shared-memory/shared_memory.py serve --data ~/.local/share/codex-shared-memory/data"
-      ]
-    }
-  }
-}
-```
+The registered command is `python3 ~/.local/share/codex-shared-memory/shared_memory.py serve --config <client.json>`, which serves reads from the local cache. Use `--mcp-mode remote` to register the SSH server command instead. JSON configs are backed up once as `*.before-shared-memory`; a JSONC file with comments is refused so it can be edited by hand.
 
-Enable and verify it with a fresh Cursor Agent session:
+For any other stdio MCP client, register the same `serve --config` command under the name `shared_memories` and copy the block from [AGENT-GUIDANCE.md](AGENT-GUIDANCE.md) into its instructions.
+
+### Verify
 
 ```sh
-cursor-agent mcp enable shared_memories
-cursor-agent mcp list-tools shared_memories
+python3 ~/.local/share/codex-shared-memory/shared_memory.py doctor \
+  --config ~/.local/share/codex-shared-memory/client.json
 ```
 
-OpenCode user configuration in `~/.config/opencode/opencode.jsonc`:
-
-```jsonc
-{
-  "$schema": "https://opencode.ai/config.json",
-  "mcp": {
-    "shared_memories": {
-      "type": "local",
-      "command": [
-        "ssh",
-        "-T",
-        "-o", "BatchMode=yes",
-        "-o", "StrictHostKeyChecking=yes",
-        "memory-server",
-        "python3 ~/.local/share/codex-shared-memory/shared_memory.py serve --data ~/.local/share/codex-shared-memory/data"
-      ],
-      "enabled": true,
-      "timeout": 15000
-    }
-  }
-}
-```
-
-Start a fresh client session after changing MCP or agent instructions. Confirm tool discovery, then make real `list`, `read`, and `search` calls. A connected indicator alone does not prove the transport or server works.
+`doctor` checks every source, a live server status call, cache freshness and the last error, and whether each harness points `shared_memories` at this client. Then start a fresh agent session and make real `list`, `read`, and `search` calls.
 
 ## Windows notes
 

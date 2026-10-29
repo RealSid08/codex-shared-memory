@@ -1,12 +1,12 @@
 [project]
 name = "codex-shared-memory"
-version = "1.0.0"
-description = "A private, self-hosted MCP service for sharing selected Codex memory snapshots"
+version = "2.0.0"
+description = "A private, self-hosted MCP service for sharing agent memory across machines and harnesses"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
 authors = [{ name = "Sidhaarth Krishnan", email = "krishnansidhaarth@gmail.com" }]
-keywords = ["codex", "mcp", "memory", "self-hosted"]
+keywords = ["codex", "claude-code", "opencode", "cursor", "mcp", "memory", "self-hosted"]
 dependencies = []
 
 [project.urls]
