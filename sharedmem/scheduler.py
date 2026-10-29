@@ -9,6 +9,7 @@ import platform
 import plistlib
 import shlex
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -34,7 +35,8 @@ JOBS = {
 
 
 def run(command, **kwargs):
-    return subprocess.run(command, check=True, **kwargs)
+    # Tool chatter goes to stderr so the installer's stdout stays one JSON document.
+    return subprocess.run(command, check=True, stdout=sys.stderr, **kwargs)
 
 
 def schedule(kind, command, home, interval_seconds):

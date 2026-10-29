@@ -28,6 +28,13 @@ PACKAGE = Path(__file__).resolve().parent
 LAUNCHER = PACKAGE.parent / "shared_memory.py"
 
 
+def interpreter():
+    """The Python path as invoked, not resolved: a stable link such as uv's
+    cpython-3.11-* or Homebrew's opt/python@3.x keeps working across patch upgrades,
+    while the resolved versioned path disappears with the old version."""
+    return os.path.abspath(sys.executable)
+
+
 def run(command, **kwargs):
     return subprocess.run(command, check=True, **kwargs)
 
@@ -201,7 +208,7 @@ def install_client(args):
     codex_home = Path(args.codex_home).expanduser()
     script = copy_runtime(args.install_dir)
     install_dir = script.parent
-    python = str(Path(sys.executable).resolve())
+    python = interpreter()
     exchange_command, remote_serve = build_commands(args, python, script)
     config = install_dir / "client.json"
     cache = (
@@ -275,7 +282,7 @@ def install_server(args):
             "Free-space threshold must be non-negative and backup interval at least 300"
         )
     script = copy_runtime(args.install_dir)
-    python = str(Path(sys.executable).resolve())
+    python = interpreter()
     data = str(Path(args.data_dir).expanduser())
     options = ["--data", data, "--min-free-bytes", str(args.min_free_bytes)]
     if args.require_mount:
